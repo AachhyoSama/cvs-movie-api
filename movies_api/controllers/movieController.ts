@@ -3,7 +3,7 @@ import { Database } from 'sqlite';
 import * as movieService from '../services/movieService';
 import { buildResponse } from '../utils/helpers';
 
-const OMDB_API_KEY = process.env.OMDB_API_KEY || '9614787b'; // Using my key for testing
+const OMDB_API_KEY = process.env.OMDB_API_KEY; // Using my key for testing
 
 export const listMovies = async (moviesDB: Database, req: Request, res: Response) => {
   try {
@@ -55,8 +55,9 @@ export const moviesByYear = async (moviesDB: Database, req: Request, res: Respon
       [year.toString()]
     );
     const total = totalRow?.count || movies.length;
+    const order = desc === false ? "ASCENDING" : "DESCENDING";
 
-    res.json(buildResponse(movies, `Movies for year ${year} fetched successfully`, page, total));
+    res.json(buildResponse(movies, `Movies for year ${year}, sorted in ${order} order fetched successfully`, page, total));
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message, data: null });
   }
