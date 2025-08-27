@@ -11,7 +11,7 @@ export const getAllMovies = (db: Database, req: Request, res: Response): void =>
       res.status(500).send(JSON.stringify(err));
       return; // Ensure to return after sending a response
     }
-
+    
     console.log(rows);
     if (rows.length === 0) {
       res.status(404).send('No movies found'); // Send a response for 404
