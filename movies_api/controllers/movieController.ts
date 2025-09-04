@@ -3,9 +3,13 @@ import { Database } from 'sqlite';
 import * as movieService from '../services/movieService';
 import { buildResponse } from '../utils/helpers';
 
-const OMDB_API_KEY = process.env.OMDB_API_KEY; // Using my key for testing
+const OMDB_API_KEY = process.env.OMDB_API_KEY || "9614787b"; // Using my key for testing
 
-export const listMovies = async (moviesDB: Database, req: Request, res: Response) => {
+export const listMovies = async (
+  moviesDB: Database, 
+  req: Request, 
+  res: Response
+) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const movies = await movieService.getAllMovies(moviesDB, page);
@@ -13,13 +17,19 @@ export const listMovies = async (moviesDB: Database, req: Request, res: Response
     const totalMoviesRow = await moviesDB.get<{ count: number }>('SELECT COUNT(*) as count FROM movies');
     const total = totalMoviesRow?.count || movies.length;
 
-    res.json(buildResponse(movies, 'Movies fetched successfully', page, total));
+    res.json(buildResponse(movies, 'Movies fetched successfully!', page, total));
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message, data: null });
   }
 };
 
-export const movieDetails = async (moviesDB: Database, ratingsDB: Database, req: Request, res: Response) => {
+
+export const movieDetails = async (
+  moviesDB: Database, 
+  ratingsDB: Database, 
+  req: Request, 
+  res: Response
+) => {
   try {
     const movieId = parseInt(req.params.movieId);
     const movie = await movieService.getMovieById(moviesDB, ratingsDB, movieId, OMDB_API_KEY);
@@ -34,7 +44,11 @@ export const movieDetails = async (moviesDB: Database, ratingsDB: Database, req:
 };
 
 
-export const listGenres = async (moviesDB: Database, req: Request, res: Response) => {
+export const listGenres = async (
+  moviesDB: Database, 
+  req: Request, 
+  res: Response
+) => {
   try {
     const genres = await movieService.getAllGenres(moviesDB);
     res.json(buildResponse(genres, 'Genres fetched successfully'));
@@ -43,7 +57,11 @@ export const listGenres = async (moviesDB: Database, req: Request, res: Response
   }
 };
 
-export const moviesByYear = async (moviesDB: Database, req: Request, res: Response) => {
+export const moviesByYear = async (
+  moviesDB: Database, 
+  req: Request, 
+  res: Response
+) => {
   try {
     const year = parseInt(req.params.year);
     const page = parseInt(req.query.page as string) || 1;
@@ -63,19 +81,54 @@ export const moviesByYear = async (moviesDB: Database, req: Request, res: Respon
   }
 };
 
-export const moviesByGenre = async (moviesDB: Database, req: Request, res: Response) => {
+export const moviesByGenreId = async (
+  moviesDB: Database, 
+  req: Request, 
+  res: Response
+) => {
   try {
     const genreId = parseInt(req.params.genreId);
     const page = parseInt(req.query.page as string) || 1;
-    const movies = await movieService.getMoviesByGenre(moviesDB, genreId, page);
 
+    // Fetch movies by genre
+    const movies = await movieService.getMoviesByGenreId(moviesDB, genreId, page);
+
+    // Get total count of movies for this genre
     const totalRow = await moviesDB.get<{ count: number }>(
-      `SELECT COUNT(*) as count FROM movies WHERE genres LIKE ?`,
-      [`%${genreId}%`]
+      `
+      SELECT COUNT(*) as count
+      FROM movies
+      WHERE EXISTS (
+        SELECT 1
+        FROM json_each(movies.genres)
+        WHERE json_extract(value, '$.id') = ?
+      )
+      `,
+      [genreId]
     );
+
+    // Get genre name from one of the movies (or directly from DB query)
+    const genreRow = await moviesDB.get<{ name: string }>(
+      `
+      SELECT json_extract(value, '$.name') as name
+      FROM movies, json_each(movies.genres)
+      WHERE json_extract(value, '$.id') = ?
+      LIMIT 1
+      `,
+      [genreId]
+    );
+
+    const genreName = genreRow?.name || `Genre ${genreId}`;
     const total = totalRow?.count || movies.length;
 
-    res.json(buildResponse(movies, `Movies for genre ${genreId} fetched successfully`, page, total));
+    res.json(
+      buildResponse(
+        movies,
+        `Movies for genre ${genreName} fetched successfully`,
+        page,
+        total
+      )
+    );
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message, data: null });
   }

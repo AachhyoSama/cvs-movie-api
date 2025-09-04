@@ -60,6 +60,7 @@ export const getAverageRating = async (ratingsDB: Database, movieId: number): Pr
   try {
     const ratings = await ratingsDB.all<Rating[]>(`SELECT rating FROM ratings WHERE movieId = ?`, [movieId]);
     if (!ratings.length) return null;
+    
     const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
     return Number((sum / ratings.length).toFixed(2));
   } catch (err) {
@@ -100,8 +101,27 @@ export const getMoviesByYear = async (db: Database, year: number, page: number =
   return rows.map(mapMovieForList);
 };
 
-export const getMoviesByGenre = async (db: Database, genreId: number, page: number = 1): Promise<any[]> => {
+export const getMoviesByGenreId = async (
+  db: Database,
+  genreId: number,
+  page: number = 1
+): Promise<any[]> => {
   const { offset, limit } = paginate(page);
-  const rows = await db.all<Movie[]>(`SELECT * FROM movies WHERE genres LIKE ? LIMIT ? OFFSET ?`, [`%${genreId}%`, limit, offset]);
+
+  const rows = await db.all<Movie[]>(
+    `
+    SELECT *
+    FROM movies
+    WHERE EXISTS (
+      SELECT 1
+      FROM json_each(movies.genres)
+      WHERE json_extract(value, '$.id') = ?
+    )
+    LIMIT ? OFFSET ?
+    `,
+    [genreId, limit, offset]
+  );
+
   return rows.map(mapMovieForList);
 };
+

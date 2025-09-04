@@ -1,6 +1,9 @@
-import express, { Request, Response } from 'express';
-import { openMoviesDB, openRatingsDB } from './db';
+import express from 'express';
+import { openMoviesDB, openRatingsDB } from './config/db.config';
 import { createMovieRoutes } from './routes/movieRoutes';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
@@ -15,7 +18,7 @@ const PORT = process.env.PORT || 3000;
     res.send("Welcome to the Movie API!")
   })
   
-  app.use('/movies', createMovieRoutes(moviesDB, ratingsDB));
+  app.use('/api/movies', createMovieRoutes(moviesDB, ratingsDB));
 
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
